@@ -16,6 +16,7 @@
 #include "board_config.h"
 #include "gpio.h"
 #include "hdlc.h"
+#include "qspi.h"
 #include "radio.h"
 #include "timer.h"
 #include "uart.h"
@@ -45,18 +46,24 @@ static const gpio_t _mosi_pin = { .port = 0, .pin = 21 };
 static const gpio_t _cs_pin   = { .port = 0, .pin = 20 };
 static const gpio_t _prog_pin = { .port = 0, .pin = 19 };
 #else
-static const gpio_t _sck_pin  = { .port = 1, .pin = 15 };
-static const gpio_t _miso_pin = { .port = 1, .pin = 14 };
-static const gpio_t _mosi_pin = { .port = 1, .pin = 13 };
-static const gpio_t _cs_pin   = { .port = 1, .pin = 12 };
+static const gpio_t _io0_pin = { .port = 0, .pin = 20 };
+static const gpio_t _io1_pin = { .port = 0, .pin = 21 };
+static const gpio_t _io2_pin = { .port = 0, .pin = 22 };
+static const gpio_t _io3_pin = { .port = 0, .pin = 23 };
+static const gpio_t _sck_pin = { .port = 0, .pin = 19 };
+static const gpio_t _cs_pin  = { .port = 0, .pin = 17 };
 static const gpio_t _prog_pin = { .port = 1, .pin = 11 };
 #endif
 
-static const n25q128_conf_t _n25q128_conf = {
-    .mosi = &_mosi_pin,
+static const db_qspi_conf_t _qspi_conf = {
+    .io0 = &_io0_pin,
+    .io1 = &_io1_pin,
+    .io2 = &_io2_pin,
+    .io3 = &_io3_pin,
     .sck  = &_sck_pin,
-    .miso = &_miso_pin,
     .cs   = &_cs_pin,
+    .sckfreq     = DB_QSPI_SCKFREQ_32MHZ,
+    .enable_quad = true,
 };
 
 //=========================== callbacks ========================================
@@ -83,7 +90,7 @@ static void _upgate_reply(const uint8_t *message, size_t len) {
 
 static const db_upgate_conf_t _upgate_config = {
     .reply = _upgate_reply,
-    .n25q128_conf = &_n25q128_conf,
+    .qspi_conf = &_qspi_conf,
     .prog = &_prog_pin,
 };
 
