@@ -225,7 +225,7 @@ class DotBotUpgate:
                 send_time = time.time()
                 tries += 1
             time.sleep(0.0001)
-            send = time.time() - send_time > 0.1
+            send = time.time() - send_time > 1
         else:
             raise Exception(f"packet #{chunk.index} ({packet.token.hex()}) not acknowledged. Aborting.")
 
@@ -305,7 +305,7 @@ def main(port, baudrate, secure, compression, yes, bitstream):
     try:
         upgater.transfer()
     except Exception as exc:
-        print(f"Error during transfer: {exc}")
+        print(f"\nError during transfer: {exc}")
         return
     ret = upgater.finalize()
     if ret is False:
