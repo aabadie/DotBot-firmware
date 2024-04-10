@@ -12,5 +12,5 @@ system.
 To install all the Python dependencies (pydotbot, cryptography, click and tqdm), run:
 
 ```
-pip install -r dist/scripts/otap/requirements.txt
+pip install -r dist/scripts/upgate/requirements.txt
 ```
