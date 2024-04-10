@@ -26,6 +26,9 @@
 #define DB_QSPI_SCKFREQ_2MHZ  (15)
 #define DB_QSPI_SCKFREQ_1MHZ  (31)
 
+#define DB_QSPI_BLOCK_SIZE    (64 * 1024UL)
+#define DB_QSPI_PAGE_SIZE     (256U)
+
 /// SPIM pin configuration
 typedef struct {
     const gpio_t *io0;          ///< IO0
