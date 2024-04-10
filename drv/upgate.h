@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 #include "gpio.h"
-#include "n25q128.h"
+#include "qspi.h"
 
 //=========================== defines ==========================================
 
@@ -33,7 +33,7 @@ typedef void (*db_upgate_reply_t)(const uint8_t *, size_t);  ///< Transport agno
 ///< FPGA bitstream update configuration
 typedef struct {
     db_upgate_reply_t     reply;  ///< Pointer to the function used to reply to the upgate script
-    const n25q128_conf_t *n25q128_conf;
+    const db_qspi_conf_t *qspi_conf;
     const gpio_t         *prog;
 } db_upgate_conf_t;
 

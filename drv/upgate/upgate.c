@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "gpio.h"
-#include "n25q128.h"
+#include "qspi.h"
 #include "lz4.h"
 #include "uzlib.h"
 #include "upgate.h"
@@ -43,10 +43,10 @@ typedef struct {
     uint8_t                 hash[DB_UPGATE_SHA256_LENGTH];
     uint8_t                 read_buf[DB_UPGATE_CHUNK_SIZE * 2];
     uint8_t                 write_buf[DB_UPGATE_CHUNK_SIZE * 2];
-    uint8_t                 compression;
     uint8_t                 temp_buffer[BUFFER_SIZE];
     uint16_t                compressed_length;
     uint8_t                 decompressed_buffer[BUFFER_SIZE];
+    uint8_t                 compression;
     struct uzlib_uncomp     d;
 } db_upgate_vars_t;
 
@@ -64,15 +64,15 @@ void db_upgate_init(const db_upgate_conf_t *config) {
 }
 
 void db_upgate_start(void) {
-    n25q128_init(_upgate_vars.config->n25q128_conf);
+    db_qspi_init(_upgate_vars.config->qspi_conf);
     _upgate_vars.addr = UPGATE_BASE_ADDRESS;
     // Erase the corresponding sectors.
-    uint32_t sector_count = (_upgate_vars.bistream_size / N25Q128_SECTOR_SIZE) + (_upgate_vars.bistream_size % N25Q128_SECTOR_SIZE != 0);
+    uint32_t sector_count = (_upgate_vars.bistream_size / DB_QSPI_BLOCK_SIZE) + (_upgate_vars.bistream_size % DB_QSPI_BLOCK_SIZE != 0);
     printf("Sectors to erase: %u\n", sector_count);
     for (uint32_t sector = 0; sector < sector_count; sector++) {
-        uint32_t addr = _upgate_vars.addr + sector * N25Q128_SECTOR_SIZE;
+        uint32_t addr = _upgate_vars.addr + sector * DB_QSPI_BLOCK_SIZE;
         printf("Erasing sector %u at %p\n", sector, addr);
-        n25q128_sector_erase(addr);
+        db_qspi_block_erase(addr);
     }
     puts("");
     uzlib_init();
@@ -94,9 +94,7 @@ void db_upgate_finish(void) {
 
     puts("Finishing upgate");
     // Put SPIM GPIOS as input otherwise the FPGA ends up in a broken state
-    db_gpio_init(_upgate_vars.config->n25q128_conf->mosi, DB_GPIO_IN);
-    db_gpio_init(_upgate_vars.config->n25q128_conf->sck, DB_GPIO_IN);
-    db_gpio_init(_upgate_vars.config->n25q128_conf->miso, DB_GPIO_IN);
+    db_gpio_init(_upgate_vars.config->qspi_conf->sck, DB_GPIO_IN);
 
     // Reset the FPGA by triggerring the FPGA prog pin
     db_gpio_clear(_upgate_vars.config->prog);
@@ -104,6 +102,7 @@ void db_upgate_finish(void) {
 }
 
 void db_upgate_handle_packet(const db_upgate_pkt_t *pkt) {
+    __NOP();
     if (_upgate_vars.compression != DB_UPGATE_COMPRESSION_NONE) {
         uint8_t packet_size = pkt->packet_size;
         _upgate_vars.compressed_length += packet_size;
@@ -144,11 +143,11 @@ void db_upgate_handle_packet(const db_upgate_pkt_t *pkt) {
             }
             _upgate_vars.compressed_length = 0;
             uint32_t base_addr             = _upgate_vars.addr + pkt->chunk_index * BUFFER_SIZE;
-            for (uint32_t block = 0; block < pkt->original_size / N25Q128_PAGE_SIZE; block++) {
-                printf("Programming %d bytes at %p\n", N25Q128_PAGE_SIZE, base_addr + block * N25Q128_PAGE_SIZE);
-                n25q128_program_page(base_addr + block * N25Q128_PAGE_SIZE, &_upgate_vars.decompressed_buffer[block * N25Q128_PAGE_SIZE], N25Q128_PAGE_SIZE);
-                n25q128_read(base_addr + block * N25Q128_PAGE_SIZE, &_upgate_vars.temp_buffer[block * N25Q128_PAGE_SIZE], N25Q128_PAGE_SIZE);
-                if (memcmp(&_upgate_vars.temp_buffer[block * N25Q128_PAGE_SIZE], &_upgate_vars.temp_buffer[block * N25Q128_PAGE_SIZE], N25Q128_PAGE_SIZE) != 0) {
+            for (uint32_t block = 0; block < pkt->original_size / DB_QSPI_PAGE_SIZE; block++) {
+                printf("Programming %d bytes at %p\n", DB_QSPI_PAGE_SIZE, base_addr + block * DB_QSPI_PAGE_SIZE);
+                db_qspi_program(base_addr + block * DB_QSPI_PAGE_SIZE, &_upgate_vars.decompressed_buffer[block * DB_QSPI_PAGE_SIZE], DB_QSPI_PAGE_SIZE);
+                db_qspi_read(base_addr + block * DB_QSPI_PAGE_SIZE, &_upgate_vars.temp_buffer[block * DB_QSPI_PAGE_SIZE], DB_QSPI_PAGE_SIZE);
+                if (memcmp(&_upgate_vars.temp_buffer[block * DB_QSPI_PAGE_SIZE], &_upgate_vars.temp_buffer[block * DB_QSPI_PAGE_SIZE], DB_QSPI_PAGE_SIZE) != 0) {
                     puts("packet doesn't match!!");
                 }
             }
@@ -165,8 +164,8 @@ void db_upgate_handle_packet(const db_upgate_pkt_t *pkt) {
         uint32_t addr      = _upgate_vars.addr + (pkt->chunk_index - 1) * DB_UPGATE_CHUNK_SIZE;
         size_t   data_size = (pkt->chunk_index == chunk_count - 1 && chunk_count % 2 == 1) ? pkt->original_size : DB_UPGATE_CHUNK_SIZE + pkt->original_size;
         printf("Programming %d bytes at %p\n", data_size, addr);
-        n25q128_program_page(addr, _upgate_vars.write_buf, data_size);
-        n25q128_read(addr, _upgate_vars.read_buf, data_size);
+        db_qspi_program(addr, _upgate_vars.write_buf, data_size);
+        db_qspi_read(addr, _upgate_vars.read_buf, data_size);
         if (memcmp(_upgate_vars.write_buf, _upgate_vars.read_buf, data_size) != 0) {
             puts("packet doesn't match!!");
         }
