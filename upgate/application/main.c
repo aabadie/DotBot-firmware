@@ -46,12 +46,18 @@ static const gpio_t _mosi_pin = { .port = 0, .pin = 21 };
 static const gpio_t _cs_pin   = { .port = 0, .pin = 20 };
 static const gpio_t _prog_pin = { .port = 0, .pin = 19 };
 #else
-static const gpio_t _io0_pin = { .port = 1, .pin = 13 };
-static const gpio_t _io1_pin = { .port = 1, .pin = 12 };
-static const gpio_t _io2_pin = { .port = 1, .pin = 7 };
-static const gpio_t _io3_pin = { .port = 1, .pin = 8 };
-static const gpio_t _sck_pin  = { .port = 1, .pin = 15 };
-static const gpio_t _cs_pin   = { .port = 1, .pin = 12 };
+//static const gpio_t _io0_pin = { .port = 1, .pin = 13 };
+//static const gpio_t _io1_pin = { .port = 1, .pin = 12 };
+//static const gpio_t _io2_pin = { .port = 1, .pin = 7 };
+//static const gpio_t _io3_pin = { .port = 1, .pin = 8 };
+//static const gpio_t _sck_pin  = { .port = 1, .pin = 15 };
+//static const gpio_t _cs_pin   = { .port = 1, .pin = 12 };
+static const gpio_t _io0_pin = { .port = 0, .pin = 20 };
+static const gpio_t _io1_pin = { .port = 0, .pin = 21 };
+static const gpio_t _io2_pin = { .port = 0, .pin = 22 };
+static const gpio_t _io3_pin = { .port = 0, .pin = 23 };
+static const gpio_t _sck_pin = { .port = 0, .pin = 19 };
+static const gpio_t _cs_pin  = { .port = 0, .pin = 17 };
 static const gpio_t _prog_pin = { .port = 1, .pin = 11 };
 #endif
 
@@ -63,7 +69,7 @@ static const db_qspi_conf_t _qspi_conf = {
     .sck  = &_sck_pin,
     .cs   = &_cs_pin,
     .sckfreq     = DB_QSPI_SCKFREQ_32MHZ,
-    .enable_quad = false,
+    .enable_quad = true,
 };
 
 //=========================== callbacks ========================================
