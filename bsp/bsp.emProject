@@ -106,7 +106,7 @@
       project_dependencies="00bsp_clock"
       project_directory="."
       project_type="Library" />
-    <file file_name="nrf/$(RadioImplementationFile)" />
+    <file file_name="nrf/radio.c" />
     <file file_name="radio.h" />
   </project>
   <project Name="00bsp_rng">
