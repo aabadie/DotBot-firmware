@@ -312,7 +312,7 @@ void RADIO_IRQHandler(void) {
 
         if (radio_vars.state == (RADIO_STATE_BUSY | RADIO_STATE_RX)) {
             if (NRF_RADIO->CRCSTATUS != RADIO_CRCSTATUS_CRCSTATUS_CRCOk) {
-                puts("Invalid CRC");
+                puts("Radio: CRC check failed");
             } else if (radio_vars.callback) {
                 radio_vars.callback(radio_vars.pdu.payload, radio_vars.pdu.length);
             }

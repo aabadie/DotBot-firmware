@@ -90,11 +90,13 @@ static const timer_hf_conf_t _devs[TIMER_COUNT] = {
         .irq    = TIMER3_IRQn,
         .cc_num = TIMER3_CC_NUM - 1,
     },
+#if !defined(USE_UART_BLOCK_MODE)
     {
-        .p      = NRF_TIMER4,
-        .irq    = TIMER4_IRQn,
-        .cc_num = TIMER4_CC_NUM - 1,
+       .p      = NRF_TIMER4,
+       .irq    = TIMER4_IRQn,
+       .cc_num = TIMER4_CC_NUM - 1,
     },
+#endif
 #endif
 };
 
@@ -220,7 +222,9 @@ void TIMER3_IRQHandler(void) {
     _timer_hf_isr(3);
 }
 
+#if !defined(USE_UART_BLOCK_MODE)
 void TIMER4_IRQHandler(void) {
-    _timer_hf_isr(4);
+   _timer_hf_isr(4);
 }
+#endif
 #endif

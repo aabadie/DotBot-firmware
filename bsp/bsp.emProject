@@ -161,6 +161,15 @@
     <file file_name="nrf/uart.c" />
     <file file_name="uart.h" />
   </project>
+  <project Name="00bsp_uart_block">
+    <configuration
+      Name="Common"
+      project_dependencies="00bsp_gpio"
+      project_directory="."
+      project_type="Library" />
+    <file file_name="nrf/uart_block.c" />
+    <file file_name="uart_block.h" />
+  </project>
   <project Name="00bsp_wdt">
     <configuration
       Name="Common"

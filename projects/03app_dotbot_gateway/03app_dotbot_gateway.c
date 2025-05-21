@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <nrf.h>
 // Include BSP headers
 #include "board.h"
 #include "board_config.h"
 #include "gpio.h"
-#include "hdlc.h"
 #include "protocol.h"
 #include "timer.h"
-#include "uart.h"
+#include "uart_fast.h"
 #include "tdma_server.h"
 
 //=========================== defines ==========================================
@@ -23,35 +23,28 @@
 #else
 #define DB_UART_INDEX (0)  ///< Index of UART peripheral to use
 #endif
-#define DB_RADIO_QUEUE_SIZE (8U)                             ///< Size of the radio queue (must by a power of 2)
+#define DB_QUEUE_SIZE (8U)                             ///< Size of the radio queue (must by a power of 2)
 #define DB_RADIO_FREQ       (8U)                             //< Set the frequency to 2408 MHz
-#define DB_UART_QUEUE_SIZE  ((DB_BUFFER_MAX_BYTES + 1) * 2)  ///< Size of the UART queue size (must by a power of 2)
 #define RADIO_APP           (DotBot)                         // DotBot Radio App
 
 typedef struct {
     uint8_t length;                       ///< Length of the radio packet
     uint8_t buffer[DB_BUFFER_MAX_BYTES];  ///< Buffer containing the radio packet
-} gateway_radio_packet_t;
+} packet_t;
 
 typedef struct {
     uint8_t                current;                       ///< Current position in the queue
     uint8_t                last;                          ///< Position of the last item added in the queue
-    gateway_radio_packet_t packets[DB_RADIO_QUEUE_SIZE];  ///< Buffer containing the received bytes
-} gateway_radio_packet_queue_t;
+    packet_t               packets[DB_QUEUE_SIZE];  ///< Buffer containing the received bytes
+} packet_queue_t;
 
 typedef struct {
-    uint16_t current;                     ///< Current position in the queue
-    uint16_t last;                        ///< Position of the last item added in the queue
-    uint8_t  buffer[DB_UART_QUEUE_SIZE];  ///< Buffer containing the received bytes
-} gateway_uart_queue_t;
-
-typedef struct {
-    uint8_t                      hdlc_rx_buffer[DB_BUFFER_MAX_BYTES * 2];  ///< Buffer where message received on UART is stored
-    uint8_t                      hdlc_tx_buffer[DB_BUFFER_MAX_BYTES * 2];  ///< Internal buffer used for sending serial HDLC frames
     uint32_t                     buttons;                                  ///< Buttons state (one byte per button)
     uint8_t                      radio_tx_buffer[DB_BUFFER_MAX_BYTES];     ///< Internal buffer that contains the command to send (from buttons)
-    gateway_radio_packet_queue_t radio_queue;                              ///< Queue used to process received radio packets outside of interrupt
-    gateway_uart_queue_t         uart_queue;                               ///< Queue used to process received UART bytes outside of interrupt
+    packet_t              radio_packet;                              ///< Queue used to process received radio packets outside of interrupt
+    bool                    radio_packet_received;
+    packet_t              uart_packet;                               ///< Queue used to process received UART bytes outside of interrupt
+    bool                    uart_packet_received;
     bool                         handshake_done;                           ///< Whether startup handshake is done
     bool                         led1_blink;                               ///< Whether the status LED should blink
 } gateway_vars_t;
@@ -62,26 +55,34 @@ static gateway_vars_t _gw_vars;
 
 //=========================== callbacks ========================================
 
-static void _uart_callback(uint8_t data) {
+static void _uart_callback(const uint8_t *data, size_t length) {
     if (!_gw_vars.handshake_done) {
         uint8_t version = DB_FIRMWARE_VERSION;
-        db_uart_write(DB_UART_INDEX, &version, 1);
-        if (data == version) {
+        db_uart_fast_write(DB_UART_INDEX, &version, 1);
+        if (data[0] == version) {
             _gw_vars.handshake_done = true;
+            puts("Handshake done");
         }
         return;
     }
-    _gw_vars.uart_queue.buffer[_gw_vars.uart_queue.last] = data;
-    _gw_vars.uart_queue.last                             = (_gw_vars.uart_queue.last + 1) & (DB_UART_QUEUE_SIZE - 1);
+    memcpy(_gw_vars.uart_packet.buffer, data, length);
+    _gw_vars.uart_packet.length = length;
+    _gw_vars.uart_packet_received = true;
+    //_gw_vars.uart_queue.packets[_gw_vars.uart_queue.last].length = length;
+    //_gw_vars.uart_queue.last                             = (_gw_vars.uart_queue.last + 1) & (DB_QUEUE_SIZE - 1);
 }
 
 static void _radio_callback(uint8_t *packet, uint8_t length) {
     if (!_gw_vars.handshake_done) {
+        puts("Handshake not done, skipping radio packet");
         return;
     }
-    memcpy(_gw_vars.radio_queue.packets[_gw_vars.radio_queue.last].buffer, packet, length);
-    _gw_vars.radio_queue.packets[_gw_vars.radio_queue.last].length = length;
-    _gw_vars.radio_queue.last                                      = (_gw_vars.radio_queue.last + 1) & (DB_RADIO_QUEUE_SIZE - 1);
+    memcpy(_gw_vars.radio_packet.buffer, packet, length);
+    _gw_vars.radio_packet.length = length;
+    _gw_vars.radio_packet_received = true;
+    //memcpy(_gw_vars.radio_queue.packets[_gw_vars.radio_queue.last].buffer, packet, length);
+    //_gw_vars.radio_queue.packets[_gw_vars.radio_queue.last].length = length;
+    //_gw_vars.radio_queue.last                                      = (_gw_vars.radio_queue.last + 1) & (DB_QUEUE_SIZE - 1);
 }
 
 static void _led1_blink_fast(void) {
@@ -142,10 +143,12 @@ int main(void) {
     db_tdma_server_init(&_radio_callback, DOTBOT_GW_RADIO_MODE, DB_RADIO_FREQ);
     // Initialize the gateway context
     _gw_vars.buttons             = 0x0000;
-    _gw_vars.radio_queue.current = 0;
-    _gw_vars.radio_queue.last    = 0;
+    //_gw_vars.radio_queue.current = 0;
+    //_gw_vars.radio_queue.last    = 0;
+    //_gw_vars.uart_queue.current = 0;
+    //_gw_vars.uart_queue.last    = 0;
     _gw_vars.handshake_done      = false;
-    db_uart_init(DB_UART_INDEX, &db_uart_rx, &db_uart_tx, DB_UART_BAUDRATE, &_uart_callback);
+    db_uart_fast_init(DB_UART_INDEX, &db_uart_rx, &db_uart_tx, DB_UART_BAUDRATE, &_uart_callback);
 
     // Initialize buttons used to broadcast move raw values to DotBots
     db_gpio_init(&db_btn2, DB_GPIO_IN_PU);
@@ -177,32 +180,37 @@ int main(void) {
             db_timer_delay_ms(TIMER_DEV, 50);
         }
 
-        while (_gw_vars.radio_queue.current != _gw_vars.radio_queue.last) {
+        if (_gw_vars.radio_packet_received) {
             db_gpio_clear(&db_led2);
-            size_t frame_len = db_hdlc_encode(_gw_vars.radio_queue.packets[_gw_vars.radio_queue.current].buffer, _gw_vars.radio_queue.packets[_gw_vars.radio_queue.current].length, _gw_vars.hdlc_tx_buffer);
-            db_uart_write(DB_UART_INDEX, _gw_vars.hdlc_tx_buffer, frame_len);
-            _gw_vars.radio_queue.current = (_gw_vars.radio_queue.current + 1) & (DB_RADIO_QUEUE_SIZE - 1);
+            db_uart_fast_write(DB_UART_INDEX, _gw_vars.radio_packet.buffer, _gw_vars.radio_packet.length);
+            _gw_vars.radio_packet_received = false;
+            printf("Forwarding radio packet (%dB): ", _gw_vars.radio_packet.length);
+            for (uint8_t byte = 0; byte < _gw_vars.radio_packet.length; byte++) {
+                printf("%02X ", _gw_vars.radio_packet.buffer[byte]);
+            }
+            puts("");
         }
 
-        while (_gw_vars.uart_queue.current != _gw_vars.uart_queue.last) {
+        if (_gw_vars.uart_packet_received) {
             db_gpio_clear(&db_led3);
-            db_hdlc_state_t hdlc_state = db_hdlc_rx_byte(_gw_vars.uart_queue.buffer[_gw_vars.uart_queue.current]);
-            switch ((uint8_t)hdlc_state) {
-                case DB_HDLC_STATE_IDLE:
-                case DB_HDLC_STATE_RECEIVING:
-                case DB_HDLC_STATE_ERROR:
-                    break;
-                case DB_HDLC_STATE_READY:
-                {
-                    size_t msg_len = db_hdlc_decode(_gw_vars.hdlc_rx_buffer);
-                    if (msg_len) {
-                        db_tdma_server_tx(_gw_vars.hdlc_rx_buffer, msg_len);
-                    }
-                } break;
-                default:
-                    break;
+            db_tdma_server_tx(_gw_vars.uart_packet.buffer, _gw_vars.uart_packet.length);
+            _gw_vars.uart_packet_received = false;
+            printf("Forwarding uart packet (%dB): ", _gw_vars.uart_packet.length);
+            for (uint8_t byte = 0; byte < _gw_vars.uart_packet.length; byte++) {
+                printf("%02X ", _gw_vars.uart_packet.buffer[byte]);
             }
-            _gw_vars.uart_queue.current = (_gw_vars.uart_queue.current + 1) & (DB_UART_QUEUE_SIZE - 1);
+            puts("");
         }
+        //while (_gw_vars.radio_queue.current != _gw_vars.radio_queue.last) {
+        //    db_gpio_clear(&db_led2);
+        //    db_uart_fast_write(DB_UART_INDEX, _gw_vars.radio_queue.packets[_gw_vars.radio_queue.current].buffer, _gw_vars.radio_queue.packets[_gw_vars.radio_queue.current].length);
+        //    _gw_vars.radio_queue.current = (_gw_vars.radio_queue.current + 1) & (DB_QUEUE_SIZE - 1);
+        //}
+
+        //while (_gw_vars.uart_queue.current != _gw_vars.uart_queue.last) {
+        //    db_gpio_clear(&db_led3);
+        //    db_tdma_server_tx(_gw_vars.uart_queue.packets[_gw_vars.uart_queue.current].buffer, _gw_vars.uart_queue.packets[_gw_vars.uart_queue.current].length);
+        //    _gw_vars.uart_queue.current = (_gw_vars.uart_queue.current + 1) & (DB_QUEUE_SIZE - 1);
+        //}
     }
 }
