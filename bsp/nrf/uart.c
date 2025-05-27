@@ -202,7 +202,7 @@ void db_uart_init(uart_t uart, const gpio_t *rx_pin, const gpio_t *tx_pin, uint3
 }
 
 void db_uart_write(uart_t uart, uint8_t *buffer, size_t length) {
-    uint8_t pos = 0;
+    uint16_t pos = 0;
     // Send DB_UARTE_CHUNK_SIZE (64 Bytes) maximum at a time
     while ((pos % DB_UARTE_CHUNK_SIZE) == 0 && pos < length) {
         _devs[uart].p->EVENTS_ENDTX = 0;
