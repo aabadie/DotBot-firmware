@@ -1,8 +1,8 @@
 /**
  * @file
- * @ingroup bsp_uart_fast
+ * @ingroup bsp_uart_block
  *
- * @brief  nRF52833-specific definition of the "uart" bsp module.
+ * @brief  nRF52833-specific definition of the "uart block mode" bsp module.
  *
  * @author Alexandre Abadie <alexandre.abadie@inria.fr>
  *
@@ -28,11 +28,22 @@
 
 #if defined(NRF5340_XXAA) && defined(NRF_APPLICATION)
 #define NRF_POWER (NRF_POWER_S)
+#define NRF_UART_TIMER  (NRF_TIMER2_S)
+#define TIMER_CC_NUM    TIMER2_CC_NUM
+#define TIMER_IRQ       TIMER2_IRQn
 #elif defined(NRF5340_XXAA) && defined(NRF_NETWORK)
 #define NRF_POWER (NRF_POWER_NS)
+#define NRF_UART_TIMER  (NRF_TIMER2_NS)
+#define TIMER_CC_NUM    TIMER2_CC_NUM
+#define TIMER_IRQ       TIMER2_IRQn
+#else
+#define NRF_UART_TIMER  (NRF_TIMER4)
+#define TIMER_CC_NUM    TIMER4_CC_NUM
+#define TIMER_IRQ       TIMER4_IRQn
 #endif
-#define DB_UARTE_CHUNK_SIZE     (64U)
-#define DB_UARTE_BUFFER_SIZE    (UINT8_MAX)  ///< Maximum size of the buffer to store received data, 256 bytes
+
+#define DB_UARTE_CHUNK_SIZE  (64U)
+#define DB_UARTE_BUFFER_SIZE (UINT8_MAX)  ///< Maximum size of the buffer to store received data, 256 bytes
 
 typedef enum {
     IDLE,
@@ -45,9 +56,9 @@ typedef struct {
 } uart_conf_t;
 
 typedef struct {
-    uart_block_rx_cb_t  callback;  ///< pointer to the callback function
-    uart_block_state_t  state;
-    uint8_t             buffer[DB_UARTE_BUFFER_SIZE];  ///< buffer to store the received data
+    uart_block_rx_cb_t callback;  ///< pointer to the callback function
+    uart_block_state_t state;
+    uint8_t            buffer[DB_UARTE_BUFFER_SIZE];  ///< buffer to store the received data
 } uart_vars_t;
 
 //=========================== variables ========================================
@@ -211,18 +222,18 @@ void db_uart_block_init(uart_t uart, const gpio_t *rx_pin, const gpio_t *tx_pin,
     }
 
     // Configure the timer
-    NRF_TIMER4->TASKS_CLEAR = 1;
-    NRF_TIMER4->PRESCALER   = 4;  // Run TIMER at 1MHz
-    NRF_TIMER4->BITMODE     = (TIMER_BITMODE_BITMODE_32Bit << TIMER_BITMODE_BITMODE_Pos);
-    NRF_TIMER4->INTENSET    = (1 << (TIMER_INTENSET_COMPARE0_Pos + TIMER4_CC_NUM - 1));
-    NVIC_SetPriority(TIMER4_IRQn, 2);
-    NVIC_EnableIRQ(TIMER4_IRQn);
+    NRF_UART_TIMER->TASKS_CLEAR = 1;
+    NRF_UART_TIMER->PRESCALER   = 4;  // Run TIMER at 1MHz
+    NRF_UART_TIMER->BITMODE     = (TIMER_BITMODE_BITMODE_32Bit << TIMER_BITMODE_BITMODE_Pos);
+    NRF_UART_TIMER->INTENSET    = (1 << (TIMER_INTENSET_COMPARE0_Pos + TIMER_CC_NUM - 1));
+    NVIC_SetPriority(TIMER_IRQ, 2);
+    NVIC_EnableIRQ(TIMER_IRQ);
 }
 
 void db_uart_block_write(uart_t uart, const uint8_t *buffer, size_t length) {
-    _devs[uart].p->EVENTS_ENDTX = 0;
-    _devs[uart].p->TXD.PTR      = (uint32_t)&length;
-    _devs[uart].p->TXD.MAXCNT   = 1;
+    _devs[uart].p->EVENTS_ENDTX  = 0;
+    _devs[uart].p->TXD.PTR       = (uint32_t)&length;
+    _devs[uart].p->TXD.MAXCNT    = 1;
     _devs[uart].p->TASKS_STARTTX = 1;
     while (!_devs[uart].p->EVENTS_ENDTX) {
         asm volatile("" :::);
@@ -255,15 +266,15 @@ static void _uart_isr(uart_t uart) {
         // make sure we actually received new data
         if (_uart_vars[uart].state == IDLE && _uart_vars[uart].buffer[0]) {
             // first byte received, start a new frame
-            _devs[uart].p->RXD.MAXCNT = _uart_vars[uart].buffer[0];
-            _uart_vars[uart].state = FRAME_RX;
-            NRF_TIMER4->TASKS_CAPTURE[TIMER4_CC_NUM - 1] = 1;
-            NRF_TIMER4->CC[TIMER4_CC_NUM - 1] += 20000;
-            NRF_TIMER4->TASKS_START = 1;
+            _devs[uart].p->RXD.MAXCNT                    = _uart_vars[uart].buffer[0];
+            _uart_vars[uart].state                       = FRAME_RX;
+            NRF_UART_TIMER->TASKS_CAPTURE[TIMER_CC_NUM - 1] = 1;
+            NRF_UART_TIMER->CC[TIMER_CC_NUM - 1] += 20000;
+            NRF_UART_TIMER->TASKS_START = 1;
         } else if (_uart_vars[uart].state == FRAME_RX && _uart_vars[uart].callback) {
-            NRF_TIMER4->TASKS_STOP = 1;
+            NRF_UART_TIMER->TASKS_STOP = 1;
             // we received a frame that is smaller than half the buffer size, so we can process it now
-            _devs[uart].p->RXD.PTR = (uint32_t)_uart_vars[uart].buffer;
+            _devs[uart].p->RXD.PTR    = (uint32_t)_uart_vars[uart].buffer;
             _devs[uart].p->RXD.MAXCNT = 1;
             _uart_vars[uart].callback(_uart_vars[uart].buffer, _devs[uart].p->RXD.AMOUNT);
             _uart_vars[uart].state = IDLE;
@@ -301,12 +312,16 @@ void UARTE1_IRQHandler(void) {
 }
 #endif
 
+#if defined(NRF5340_XXAA)
+void TIMER2_IRQHandler(void) {
+#else
 void TIMER4_IRQHandler(void) {
-   if (NRF_TIMER4->EVENTS_COMPARE[TIMER4_CC_NUM - 1]) {
-        NRF_TIMER4->EVENTS_COMPARE[TIMER4_CC_NUM - 1] = 0;
-        NRF_TIMER4->TASKS_STOP = 1;
-        _devs[0].p->RXD.MAXCNT = 1;
-        _uart_vars[0].state = IDLE;
-        _devs[0].p->TASKS_STARTRX = 1;
-   }
+#endif
+    if (NRF_UART_TIMER->EVENTS_COMPARE[TIMER_CC_NUM - 1]) {
+        NRF_UART_TIMER->EVENTS_COMPARE[TIMER_CC_NUM - 1] = 0;
+        NRF_UART_TIMER->TASKS_STOP                       = 1;
+        _devs[0].p->RXD.MAXCNT                           = 1;
+        _uart_vars[0].state                              = IDLE;
+        _devs[0].p->TASKS_STARTRX                        = 1;
+    }
 }

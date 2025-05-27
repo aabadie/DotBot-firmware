@@ -40,7 +40,7 @@ typedef struct {
 
 //=========================== variables ========================================
 
-static const timer_hf_conf_t _devs[TIMER_COUNT] = {
+static const timer_hf_conf_t _devs[TIMER_COUNT - 1] = {
 #if defined(NRF5340_XXAA)
     {
 #if defined(NRF_NETWORK) || defined(NRF_TRUSTZONE_NONSECURE)
@@ -59,15 +59,6 @@ static const timer_hf_conf_t _devs[TIMER_COUNT] = {
 #endif
         .irq    = TIMER1_IRQn,
         .cc_num = TIMER1_CC_NUM - 1,
-    },
-    {
-#if defined(NRF_NETWORK) || defined(NRF_TRUSTZONE_NONSECURE)
-        .p = NRF_TIMER2_NS,
-#else
-        .p = NRF_TIMER2_S,
-#endif
-        .irq    = TIMER2_IRQn,
-        .cc_num = TIMER2_CC_NUM - 1,
     },
 #else
     {
@@ -90,13 +81,6 @@ static const timer_hf_conf_t _devs[TIMER_COUNT] = {
         .irq    = TIMER3_IRQn,
         .cc_num = TIMER3_CC_NUM - 1,
     },
-#if !defined(USE_UART_BLOCK_MODE)
-    {
-       .p      = NRF_TIMER4,
-       .irq    = TIMER4_IRQn,
-       .cc_num = TIMER4_CC_NUM - 1,
-    },
-#endif
 #endif
 };
 
@@ -213,18 +197,14 @@ void TIMER1_IRQHandler(void) {
     _timer_hf_isr(1);
 }
 
+#if !defined(NRF5340_XXAA)
 void TIMER2_IRQHandler(void) {
     _timer_hf_isr(2);
 }
+#endif
 
 #if !defined(NRF5340_XXAA)
 void TIMER3_IRQHandler(void) {
     _timer_hf_isr(3);
 }
-
-#if !defined(USE_UART_BLOCK_MODE)
-void TIMER4_IRQHandler(void) {
-   _timer_hf_isr(4);
-}
-#endif
 #endif

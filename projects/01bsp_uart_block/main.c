@@ -16,7 +16,7 @@
 #include "board_config.h"
 #include "uart_block.h"
 
-#define DB_UART_BAUDRATE  (1000000U)  ///< UART baudrate
+#define DB_UART_BAUDRATE (1000000U)  ///< UART baudrate
 
 static void _uart_block_callback(const uint8_t *data, size_t len) {
     db_uart_block_write(0, data, len);

@@ -26,6 +26,7 @@ ifeq (nrf5340dk-app,$(BUILD_TARGET))
     01bsp_timer \
     01bsp_timer_hf \
     01bsp_uart \
+    01bsp_uart_block \
     01bsp_wdt \
     01drv_lis2mdl \
     01drv_lis3mdl \
@@ -57,6 +58,7 @@ else ifeq (nrf5340dk-net,$(BUILD_TARGET))
     01bsp_timer \
     01bsp_timer_hf \
     01bsp_uart \
+    01bsp_uart_block \
     01bsp_wdt \
     01drv_lis2mdl \
     01drv_motors \
@@ -94,7 +96,7 @@ ifneq (,$(filter dotbot-v1,$(BUILD_TARGET)))
 endif
 
 ifneq (,$(filter dotbot-v2,$(BUILD_TARGET)))
-  PROJECTS := $(filter-out 03app_dotbot_gateway 03app_dotbot_gateway_lr 03app_sailbot 03app_xgo 03app_nrf5340_net 03app_freebot 03app_lh2_mini_mote%,$(PROJECTS))
+  PROJECTS := $(filter-out 01bsp_uart_block 03app_dotbot_gateway 03app_dotbot_gateway_lr 03app_sailbot 03app_xgo 03app_nrf5340_net 03app_freebot 03app_lh2_mini_mote%,$(PROJECTS))
   ARTIFACT_PROJECTS := 03app_dotbot
   SWARMIT_APPS := $(addprefix swarmit_, motors move rgbled timer)
 endif
