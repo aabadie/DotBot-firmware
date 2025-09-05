@@ -109,6 +109,10 @@ void db_timer_init(timer_t timer) {
     _devs[timer].p->TASKS_START = 1;
 }
 
+void db_timer_stop(timer_t timer) {
+    _devs[timer].p->TASKS_STOP = 1;
+}
+
 uint32_t db_timer_ticks(timer_t timer) {
     return _devs[timer].p->COUNTER;
 }
