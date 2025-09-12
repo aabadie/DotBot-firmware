@@ -47,8 +47,13 @@ typedef struct __attribute__((packed)) {
 /// LH2 raw data location
 typedef struct __attribute__((packed)) {
     uint8_t  selected_polynomial;  ///< selected poly is the polyomial # (between 0 and 31) that the demodulation code thinks the demodulated bits are a part of, initialize to error state
-    uint32_t lfsr_location;        ///< LFSR location is the position in a given polynomial's LFSR that the decoded data is, initialize to error state
+    uint32_t lfsr_counts;          ///< LFSR counts is the shift position in a given polynomial's LFSR that the decoded data is, initialize to error state
 } db_lh2_location_t;
+
+/// Pair of sweep counts for one basestation
+typedef struct __attribute__((packed)) {
+    uint32_t counts[LH2_SWEEP_COUNT];  ///< count is the number of times each basestation has sent a sweep
+} db_lh2_sweep_counts_t;
 
 /// LH2 instance (one row per laser sweep, and one column per basestation)
 typedef struct {

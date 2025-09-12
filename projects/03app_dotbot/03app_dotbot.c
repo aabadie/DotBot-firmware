@@ -195,10 +195,10 @@ int main(void) {
         db_lh2_process_location(&_dotbot_vars.lh2);
 
         if (_dotbot_vars.update_lh2) {
-            if (_dotbot_vars.lh2.data_ready[0][0] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][0] == DB_LH2_PROCESSED_DATA_AVAILABLE) {
-                db_lh2_stop();
-                if (_dotbot_vars.lh2.lh2_calibration_complete) {
-                    db_lh2_calculate_position(_dotbot_vars.lh2.locations[0][0].lfsr_location, _dotbot_vars.lh2.locations[1][0].lfsr_location, 0, _dotbot_vars.coordinates);
+            db_lh2_stop();
+            if (_dotbot_vars.lh2.lh2_calibration_complete) {
+                if (_dotbot_vars.lh2.data_ready[0][0] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][0] == DB_LH2_PROCESSED_DATA_AVAILABLE) {
+                    db_lh2_calculate_position(_dotbot_vars.lh2.locations[0][0].lfsr_counts, _dotbot_vars.lh2.locations[1][0].lfsr_counts, 0, _dotbot_vars.coordinates);
 
                     int16_t                 angle    = -1000;
                     protocol_lh2_location_t location = {
@@ -222,24 +222,30 @@ int main(void) {
                     memcpy(&_dotbot_vars.radio_buffer[length], &_dotbot_vars.last_location, sizeof(protocol_lh2_location_t));
                     length += sizeof(protocol_lh2_location_t);
                     db_tdma_client_tx(_dotbot_vars.radio_buffer, length);
-                } else {
-                    // Prepare the radio buffer
-                    size_t length                       = db_protocol_header_to_buffer(_dotbot_vars.radio_buffer, DB_GATEWAY_ADDRESS);
-                    _dotbot_vars.radio_buffer[length++] = DB_PROTOCOL_LH2_RAW_DATA;
-                    _dotbot_vars.radio_buffer[length++] = LH2_SWEEP_COUNT;
-                    // Add the LH2 sweep
-                    for (uint8_t lh2_sweep_index = 0; lh2_sweep_index < LH2_SWEEP_COUNT; lh2_sweep_index++) {
-                        memcpy(&_dotbot_vars.radio_buffer[length], &_dotbot_vars.lh2.raw_data[lh2_sweep_index][0], sizeof(db_lh2_raw_data_t));
-                        length += sizeof(db_lh2_raw_data_t);
-                        // Mark the data as already sent
-                        _dotbot_vars.lh2.data_ready[lh2_sweep_index][0] = DB_LH2_NO_NEW_DATA;
-                    }
-
-                    // Send the radio packet
-                    db_tdma_client_tx(_dotbot_vars.radio_buffer, length);
                 }
-                db_lh2_start();
+            } else {
+                // Prepare the radio buffer
+                size_t length                       = db_protocol_header_to_buffer(_dotbot_vars.radio_buffer, DB_GATEWAY_ADDRESS);
+                _dotbot_vars.radio_buffer[length++] = DB_PROTOCOL_LH2_RAW_DATA;
+                for (uint8_t base_station_index = 0; base_station_index < LH2_BASESTATION_COUNT; base_station_index++) {
+                    db_lh2_sweep_counts_t sweep_counts = { 0xffffffff, 0xffffffff };
+                    if (_dotbot_vars.lh2.data_ready[0][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE) {  // Only set counts if they are correct
+                        sweep_counts.counts[0] = _dotbot_vars.lh2.locations[0][0].lfsr_counts;
+                        sweep_counts.counts[1] = _dotbot_vars.lh2.locations[1][0].lfsr_counts;
+                    }
+                    // Add the LH2 sweep count for the next basestation
+                    memcpy(&_dotbot_vars.radio_buffer[length], &sweep_counts, sizeof(db_lh2_sweep_counts_t));
+                    length += sizeof(db_lh2_sweep_counts_t);
+
+                    // Mark the data as already sent
+                    _dotbot_vars.lh2.data_ready[0][base_station_index] = DB_LH2_NO_NEW_DATA;
+                    _dotbot_vars.lh2.data_ready[1][base_station_index] = DB_LH2_NO_NEW_DATA;
+                }
+
+                // Send the radio packet
+                db_tdma_client_tx(_dotbot_vars.radio_buffer, length);
             }
+            db_lh2_start();
             _dotbot_vars.update_lh2 = false;
         }
 
