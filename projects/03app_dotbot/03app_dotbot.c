@@ -195,11 +195,11 @@ int main(void) {
         db_lh2_process_location(&_dotbot_vars.lh2);
 
         if (_dotbot_vars.update_lh2) {
-            db_lh2_stop();
             if (_dotbot_vars.lh2.lh2_calibration_complete) {
                 if (_dotbot_vars.lh2.data_ready[0][0] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][0] == DB_LH2_PROCESSED_DATA_AVAILABLE) {
+                    db_lh2_stop();
                     db_lh2_calculate_position(_dotbot_vars.lh2.locations[0][0].lfsr_counts, _dotbot_vars.lh2.locations[1][0].lfsr_counts, 0, _dotbot_vars.coordinates);
-
+                    db_lh2_start();
                     int16_t                 angle    = -1000;
                     protocol_lh2_location_t location = {
                         .x = (uint32_t)(_dotbot_vars.coordinates[0] * 1e6),
@@ -224,6 +224,7 @@ int main(void) {
                     db_tdma_client_tx(_dotbot_vars.radio_buffer, length);
                 }
             } else {
+                db_lh2_stop();
                 // Prepare the radio buffer
                 size_t length                       = db_protocol_header_to_buffer(_dotbot_vars.radio_buffer, DB_GATEWAY_ADDRESS);
                 _dotbot_vars.radio_buffer[length++] = DB_PROTOCOL_LH2_RAW_DATA;
@@ -241,11 +242,11 @@ int main(void) {
                     _dotbot_vars.lh2.data_ready[0][base_station_index] = DB_LH2_NO_NEW_DATA;
                     _dotbot_vars.lh2.data_ready[1][base_station_index] = DB_LH2_NO_NEW_DATA;
                 }
+                db_lh2_start();
 
                 // Send the radio packet
                 db_tdma_client_tx(_dotbot_vars.radio_buffer, length);
             }
-            db_lh2_start();
             _dotbot_vars.update_lh2 = false;
         }
 
