@@ -231,8 +231,8 @@ int main(void) {
                 for (uint8_t base_station_index = 0; base_station_index < LH2_BASESTATION_COUNT; base_station_index++) {
                     db_lh2_sweep_counts_t sweep_counts = { 0xffffffff, 0xffffffff };
                     if (_dotbot_vars.lh2.data_ready[0][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE) {  // Only set counts if they are correct
-                        sweep_counts.counts[0] = _dotbot_vars.lh2.locations[0][0].lfsr_counts;
-                        sweep_counts.counts[1] = _dotbot_vars.lh2.locations[1][0].lfsr_counts;
+                        sweep_counts.counts[0] = _dotbot_vars.lh2.locations[0][base_station_index].lfsr_counts;
+                        sweep_counts.counts[1] = _dotbot_vars.lh2.locations[1][base_station_index].lfsr_counts;
                     }
                     // Add the LH2 sweep count for the next basestation
                     memcpy(&_dotbot_vars.radio_buffer[length], &sweep_counts, sizeof(db_lh2_sweep_counts_t));
