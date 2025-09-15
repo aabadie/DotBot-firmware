@@ -23,9 +23,10 @@
 
 //=========================== defines ==========================================
 
-#define LH2_BASESTATION_COUNT 4                          ///< Number of supported concurrent basestations
-#define LH2_POLYNOMIAL_COUNT  LH2_BASESTATION_COUNT * 2  ///< Number of supported LFSR polynomials, two per basestation
-#define LH2_SWEEP_COUNT       2                          ///< Number of laser sweeps per basestations rotation
+#define LH2_BASESTATION_COUNT   4                          ///< Number of supported concurrent basestations
+#define LH2_POLYNOMIAL_COUNT    LH2_BASESTATION_COUNT * 2  ///< Number of supported LFSR polynomials, two per basestation
+#define LH2_SWEEP_COUNT         2                          ///< Number of laser sweeps per basestations rotation
+#define LH2_LFSR_COUNTS_INVALID 0xFFFFFFFF                 ///< indicate the location value is false
 
 // Un-comment the following line if you want to enable the Anti-Mocap fiter
 // #define LH2_MOCAP_FILTER 1   ///< Defined when the LH2 needs to coexits with a Qualysis Mocap system. It enables harsher anti-outlier filters
@@ -53,7 +54,7 @@ typedef struct __attribute__((packed)) {
 /// Pair of sweep counts for one basestation
 typedef struct __attribute__((packed)) {
     uint32_t counts[LH2_SWEEP_COUNT];  ///< count is the number of times each basestation has sent a sweep
-} db_lh2_sweep_counts_t;
+} db_lh2_lfsr_counts_t;
 
 /// LH2 instance (one row per laser sweep, and one column per basestation)
 typedef struct {

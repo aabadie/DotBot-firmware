@@ -32,7 +32,6 @@
 #endif
 #define SPI_FAKE_SCK_PORT                      1                                                              ///< NOTE: SPIM needs an SCK pin to be defined, P1.6 is used because it's not an available pin in the BCM module.
 #define FUZZY_CHIP                             0xFF                                                           ///< not sure what this is about
-#define LH2_LOCATION_ERROR_INDICATOR           0xFFFFFFFF                                                     ///< indicate the location value is false
 #define LH2_POLYNOMIAL_ERROR_INDICATOR         0xFF                                                           ///< indicate the polynomial index is invalid
 #define POLYNOMIAL_BIT_ERROR_INITIAL_THRESHOLD 4                                                              ///< initial threshold of polynomial error
 #define LH2_BUFFER_SIZE                        10                                                             ///< Amount of lh2 frames the buffer can contain
@@ -847,7 +846,7 @@ void db_lh2_init(db_lh2_t *lh2, const gpio_t *gpio_d, const gpio_t *gpio_e) {
             lh2->raw_data[sweep][basestation].selected_polynomial  = LH2_POLYNOMIAL_ERROR_INDICATOR;
             lh2->raw_data[sweep][basestation].bit_offset           = 0;
             lh2->locations[sweep][basestation].selected_polynomial = LH2_POLYNOMIAL_ERROR_INDICATOR;
-            lh2->locations[sweep][basestation].lfsr_counts         = LH2_LOCATION_ERROR_INDICATOR;
+            lh2->locations[sweep][basestation].lfsr_counts         = LH2_LFSR_COUNTS_INVALID;
             lh2->timestamps[sweep][basestation]                    = 0;
             lh2->data_ready[sweep][basestation]                    = DB_LH2_NO_NEW_DATA;
         }

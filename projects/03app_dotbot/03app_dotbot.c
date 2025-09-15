@@ -229,14 +229,14 @@ int main(void) {
                 size_t length                       = db_protocol_header_to_buffer(_dotbot_vars.radio_buffer, DB_GATEWAY_ADDRESS);
                 _dotbot_vars.radio_buffer[length++] = DB_PROTOCOL_LH2_RAW_DATA;
                 for (uint8_t base_station_index = 0; base_station_index < LH2_BASESTATION_COUNT; base_station_index++) {
-                    db_lh2_sweep_counts_t sweep_counts = { 0xffffffff, 0xffffffff };
+                    db_lh2_lfsr_counts_t lfsr_counts = { LH2_LFSR_COUNTS_INVALID, LH2_LFSR_COUNTS_INVALID };
                     if (_dotbot_vars.lh2.data_ready[0][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE && _dotbot_vars.lh2.data_ready[1][base_station_index] == DB_LH2_PROCESSED_DATA_AVAILABLE) {  // Only set counts if they are correct
-                        sweep_counts.counts[0] = _dotbot_vars.lh2.locations[0][base_station_index].lfsr_counts;
-                        sweep_counts.counts[1] = _dotbot_vars.lh2.locations[1][base_station_index].lfsr_counts;
+                        lfsr_counts.counts[0] = _dotbot_vars.lh2.locations[0][base_station_index].lfsr_counts;
+                        lfsr_counts.counts[1] = _dotbot_vars.lh2.locations[1][base_station_index].lfsr_counts;
                     }
                     // Add the LH2 sweep count for the next basestation
-                    memcpy(&_dotbot_vars.radio_buffer[length], &sweep_counts, sizeof(db_lh2_sweep_counts_t));
-                    length += sizeof(db_lh2_sweep_counts_t);
+                    memcpy(&_dotbot_vars.radio_buffer[length], &lfsr_counts, sizeof(db_lh2_lfsr_counts_t));
+                    length += sizeof(db_lh2_lfsr_counts_t);
 
                     // Mark the data as already sent
                     _dotbot_vars.lh2.data_ready[0][base_station_index] = DB_LH2_NO_NEW_DATA;
